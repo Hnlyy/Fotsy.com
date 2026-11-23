@@ -6,14 +6,16 @@ if (!globalThis.crypto?.subtle) globalThis.crypto = webcrypto;
 
 class MockEdgeKV {
   static store = new Map();
+  static calls = 0;
   constructor({ namespace }) { this.namespace = namespace; }
   async get(key, options = {}) {
+    MockEdgeKV.calls += 1;
     const value = MockEdgeKV.store.get(`${this.namespace}:${key}`);
     if (value === undefined) return undefined;
     return options.type === 'json' ? JSON.parse(value) : value;
   }
-  async put(key, value) { MockEdgeKV.store.set(`${this.namespace}:${key}`, String(value)); }
-  async delete(key) { return MockEdgeKV.store.delete(`${this.namespace}:${key}`); }
+  async put(key, value) { MockEdgeKV.calls += 1; MockEdgeKV.store.set(`${this.namespace}:${key}`, String(value)); }
+  async delete(key) { MockEdgeKV.calls += 1; return MockEdgeKV.store.delete(`${this.namespace}:${key}`); }
 }
 globalThis.EdgeKV = MockEdgeKV;
 
@@ -28,6 +30,7 @@ const env = {
 };
 
 async function call(path, options = {}, cookie = '') {
+  MockEdgeKV.calls = 0;
   const request = new Request(`https://example.com${path}`, {
     method: options.method || 'GET',
     headers: {
@@ -36,7 +39,9 @@ async function call(path, options = {}, cookie = '') {
     },
     body: options.body ? JSON.stringify(options.body) : undefined
   });
-  return worker.fetch(request, {}, env);
+  const result = await worker.fetch(request, {}, env);
+  assert.ok(MockEdgeKV.calls <= 10, `${path}: KV 调用 ${MockEdgeKV.calls} 次，超过 10 次限制`);
+  return result;
 }
 
 const configResponse = await call('/api/config');

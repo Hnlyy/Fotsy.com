@@ -72,7 +72,7 @@ function layout({ config, title, description, canonical, robots, ogImage, jsonLd
 }
 
 export function articleCard(article) {
-  const summary = article.subtitle || plainText(article.content, 110);
+  const summary = article.subtitle || article.summary || plainText(article.content, 110);
   return `
     <article class="article-card">
       <a class="card-cover" href="/p/${escapeHtml(article.key)}">

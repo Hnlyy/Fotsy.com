@@ -1,6 +1,7 @@
-const META_KEY = 'idx:meta';
-const SHARD_PREFIX = 'idx:shard:';
-const SHARD_SIZE = 300;
+import { plainText } from '../public/assets/markdown.js';
+
+const INDEX_KEY = 'idx:articles';
+const MAX_INDEX = 2000;
 const KEY_CHARS = '0123456789abcdefghijklmnopqrstuvwxyz';
 
 function randomKey() {
@@ -36,17 +37,26 @@ function normalizeArticle(input, key, existing = {}) {
   };
 }
 
+function toSummary(article) {
+  return {
+    key: article.key,
+    title: article.title,
+    subtitle: article.subtitle,
+    image: article.image,
+    tags: article.tags,
+    publishedAt: article.publishedAt,
+    summary: plainText(article.content, 110)
+  };
+}
+
 export function createStore(kv) {
-  async function readMeta() {
-    const meta = await kv.get(META_KEY, { type: 'json' });
-    return meta && typeof meta === 'object'
-      ? { total: Number(meta.total) || 0, shards: Number(meta.shards) || 0 }
-      : { total: 0, shards: 0 };
+  async function readIndex() {
+    const list = await kv.get(INDEX_KEY, { type: 'json' });
+    return Array.isArray(list) ? list : [];
   }
 
-  async function readShard(index) {
-    const shard = await kv.get(`${SHARD_PREFIX}${index}`, { type: 'json' });
-    return Array.isArray(shard) ? shard : [];
+  async function writeIndex(list) {
+    await kv.put(INDEX_KEY, JSON.stringify(list.slice(0, MAX_INDEX)));
   }
 
   async function uniqueKey() {
@@ -64,40 +74,35 @@ export function createStore(kv) {
   }
 
   async function allKeys() {
-    const meta = await readMeta();
-    const shards = await Promise.all(
-      Array.from({ length: meta.shards }, (_, index) => readShard(index))
-    );
-    return [...new Set(shards.flat())].filter((key) => /^[0-9a-z]{9}$/.test(key));
-  }
-
-  async function loadArticles(keys) {
-    const articles = await Promise.all(keys.map((key) => getArticle(key)));
-    return articles.filter(Boolean).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+    return (await readIndex()).map((item) => item.key).filter((key) => /^[0-9a-z]{9}$/.test(key));
   }
 
   async function listArticles({ limit = 20, offset = 0, query = '' } = {}) {
+    const index = await readIndex();
     const keyword = String(query || '').trim().toLowerCase();
-    const keys = (await allKeys()).reverse();
-    const articles = await loadArticles(keys);
+    const sorted = index
+      .filter((item) => /^[0-9a-z]{9}$/.test(item.key))
+      .sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)));
     const filtered = keyword
-      ? articles.filter((article) =>
-          `${article.title} ${article.subtitle} ${article.tags.join(' ')}`.toLowerCase().includes(keyword)
+      ? sorted.filter((item) =>
+          `${item.title} ${item.subtitle} ${item.summary} ${(item.tags || []).join(' ')}`.toLowerCase().includes(keyword)
         )
-      : articles;
+      : sorted;
+    const start = Math.max(Number(offset) || 0, 0);
     return {
       total: filtered.length,
-      items: filtered.slice(Number(offset) || 0, (Number(offset) || 0) + (Number(limit) || 20))
+      items: filtered.slice(start, start + (Number(limit) || 20))
     };
   }
 
   async function randomArticles(count = 25) {
-    const keys = await allKeys();
-    for (let i = keys.length - 1; i > 0; i -= 1) {
+    const index = await readIndex();
+    const items = index.filter((item) => /^[0-9a-z]{9}$/.test(item.key));
+    for (let i = items.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
-      [keys[i], keys[j]] = [keys[j], keys[i]];
+      [items[i], items[j]] = [items[j], items[i]];
     }
-    return loadArticles(keys.slice(0, count));
+    return items.slice(0, count);
   }
 
   async function createArticle(input) {
@@ -105,19 +110,9 @@ export function createStore(kv) {
     const article = normalizeArticle(input, key);
     await kv.put(key, JSON.stringify(article));
 
-    const meta = await readMeta();
-    const last = meta.shards > 0 ? meta.shards - 1 : 0;
-    const shard = await readShard(last);
-    shard.push(key);
-
-    if (shard.length > SHARD_SIZE) {
-      await kv.put(`${SHARD_PREFIX}${last}`, JSON.stringify(shard.slice(0, SHARD_SIZE)));
-      await kv.put(`${SHARD_PREFIX}${last + 1}`, JSON.stringify(shard.slice(SHARD_SIZE)));
-      await kv.put(META_KEY, JSON.stringify({ total: meta.total + 1, shards: last + 2 }));
-    } else {
-      await kv.put(`${SHARD_PREFIX}${last}`, JSON.stringify(shard));
-      await kv.put(META_KEY, JSON.stringify({ total: meta.total + 1, shards: Math.max(meta.shards, last + 1) }));
-    }
+    const index = await readIndex();
+    index.unshift(toSummary(article));
+    await writeIndex(index);
     return article;
   }
 
@@ -126,6 +121,13 @@ export function createStore(kv) {
     if (!existing) return null;
     const article = normalizeArticle(input, key, existing);
     await kv.put(key, JSON.stringify(article));
+
+    const index = await readIndex();
+    const position = index.findIndex((item) => item.key === key);
+    const summary = toSummary(article);
+    if (position >= 0) index[position] = summary;
+    else index.unshift(summary);
+    await writeIndex(index);
     return article;
   }
 
@@ -134,14 +136,8 @@ export function createStore(kv) {
     if (!existing) return false;
     await kv.delete(key);
 
-    const meta = await readMeta();
-    for (let index = 0; index < meta.shards; index += 1) {
-      const shard = await readShard(index);
-      if (shard.includes(key)) {
-        await kv.put(`${SHARD_PREFIX}${index}`, JSON.stringify(shard.filter((item) => item !== key)));
-      }
-    }
-    await kv.put(META_KEY, JSON.stringify({ total: Math.max(0, meta.total - 1), shards: meta.shards }));
+    const index = await readIndex();
+    await writeIndex(index.filter((item) => item.key !== key));
     return true;
   }
 

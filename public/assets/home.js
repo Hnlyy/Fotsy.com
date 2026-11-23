@@ -9,7 +9,7 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 
 function card(article) {
-  const summary = article.subtitle || plainText(article.content, 110);
+  const summary = article.subtitle || article.summary || plainText(article.content, 110);
   const date = String(article.publishedAt || '').slice(0, 10);
   const cover = article.image
     ? `<img src="${escapeHtml(article.image)}" alt="${escapeHtml(article.title)}" loading="lazy">`
