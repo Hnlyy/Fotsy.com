@@ -1,6 +1,6 @@
 import { plainText } from '../public/assets/markdown.js';
 
-const INDEX_KEY = 'idx:articles';
+const INDEX_KEY = 'idx_articles';
 const MAX_INDEX = 2000;
 const KEY_CHARS = '0123456789abcdefghijklmnopqrstuvwxyz';
 
@@ -60,9 +60,10 @@ export function createStore(kv) {
   }
 
   async function uniqueKey() {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
       const key = randomKey();
-      if ((await kv.get(key)) === undefined) return key;
+      const existing = await kv.get(key, { type: 'text' });
+      if (existing === undefined || existing === null || existing === '') return key;
     }
     throw new Error('无法生成唯一 KV 键，请稍后重试');
   }

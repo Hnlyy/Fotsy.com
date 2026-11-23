@@ -11,7 +11,7 @@ class MockEdgeKV {
   async get(key, options = {}) {
     MockEdgeKV.calls += 1;
     const value = MockEdgeKV.store.get(`${this.namespace}:${key}`);
-    if (value === undefined) return undefined;
+    if (value === undefined) return options.type === 'json' ? undefined : '';
     return options.type === 'json' ? JSON.parse(value) : value;
   }
   async put(key, value) { MockEdgeKV.calls += 1; MockEdgeKV.store.set(`${this.namespace}:${key}`, String(value)); }
@@ -40,7 +40,8 @@ async function call(path, options = {}, cookie = '') {
     body: options.body ? JSON.stringify(options.body) : undefined
   });
   const result = await worker.fetch(request, {}, env);
-  assert.ok(MockEdgeKV.calls <= 10, `${path}: KV 调用 ${MockEdgeKV.calls} 次，超过 10 次限制`);
+  result.kvCalls = MockEdgeKV.calls;
+  assert.ok(result.kvCalls <= 10, `${path}: KV 调用 ${result.kvCalls} 次，超过 10 次限制`);
   return result;
 }
 
@@ -72,6 +73,7 @@ const createdResponse = await call('/api/admin/articles', {
   }
 }, cookie);
 assert.equal(createdResponse.status, 201);
+assert.equal(createdResponse.kvCalls, 4, '新建文章应只调用 4 次 KV');
 const article = await createdResponse.json();
 assert.match(article.key, /^[0-9a-z]{9}$/);
 
@@ -99,6 +101,7 @@ const updatedResponse = await call(`/api/admin/articles/${article.key}`, {
   body: { title: '已更新标题', content: '新内容' }
 }, cookie);
 assert.equal(updatedResponse.status, 200);
+assert.equal(updatedResponse.kvCalls, 4, '更新文章应只调用 4 次 KV');
 assert.equal((await updatedResponse.json()).title, '已更新标题');
 
 const deleted = await call(`/api/admin/articles/${article.key}`, { method: 'DELETE' }, cookie);
