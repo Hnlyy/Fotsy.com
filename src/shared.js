@@ -4,8 +4,8 @@ export function siteConfig(env = {}) {
   return {
     name: env.SITE_NAME || 'Fotsy',
     description: env.SITE_DESCRIPTION || '分享技术、思考与生活的文章站点',
-    icp: env.ICP_NO || '粤ICP备XXXXXXXX号',
-    police: env.POLICE_NO || '粤公网安备 XXXXXXXXXXXXXXX号',
+    icp: env.ICP_NO || '粤ICP备05070602号',
+    police: env.POLICE_NO || '粤公网安备 11010102000001号',
     wechatQr: env.WECHAT_QR || '/assets/wechat-qr.svg'
   };
 }
