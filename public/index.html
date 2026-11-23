@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fotsy - 分享技术与生活</title>
+  <meta name="description" content="Fotsy 文章站点，分享技术、思考与生活。">
+  <meta name="keywords" content="Fotsy,文章,博客,技术">
+  <link rel="canonical" href="/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Fotsy - 分享技术与生活">
+  <meta property="og:description" content="Fotsy 文章站点，分享技术、思考与生活。">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Fotsy","description":"分享技术、思考与生活的文章站点","url":"/"}</script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="/">Fotsy</a>
+      <nav class="nav">
+        <a href="/">首页</a>
+        <a href="/archives">文章归档</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="content-layout">
+      <div class="content-main">
+        <section class="hero">
+          <h1>最新文章</h1>
+          <p class="page-intro">记录技术探索与日常思考</p>
+        </section>
+        <div id="articleList" class="article-list">
+          <p class="empty">文章加载中…</p>
+        </div>
+        <div class="pager">
+          <button id="prevBtn" type="button" class="ghost">上一页</button>
+          <span id="pageInfo">第 1 页</span>
+          <button id="nextBtn" type="button" class="ghost">下一页</button>
+        </div>
+      </div>
+      <aside class="sidebar">
+        <section class="side-card">
+          <h2>扫码关注</h2>
+          <img id="wechatQr" class="wechat-qr" src="/assets/wechat-qr.svg" alt="微信二维码" loading="lazy">
+          <p>用微信扫码，获取更多内容与更新</p>
+        </section>
+        <section class="side-card">
+          <h2>站点说明</h2>
+          <p id="siteDesc">分享技术、思考与生活的文章站点</p>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>© <span id="year"></span> <span class="js-site-name">Fotsy</span>. 保留所有权利。</p>
+      <p><span id="icp">粤ICP备XXXXXXXX号</span><span class="divider">·</span><span id="police">粤公网安备 XXXXXXXXXXXXXXX号</span></p>
+    </div>
+  </footer>
+
+  <script type="module" src="/assets/home.js"></script>
+</body>
+</html>

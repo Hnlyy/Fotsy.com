@@ -1,0 +1,9 @@
+{
+  "name": "fotsy-com",
+  "entry": "./src/worker.js",
+  "installCommand": "",
+  "buildCommand": "node scripts/build.mjs",
+  "assets": {
+    "directory": "./public"
+  }
+}
